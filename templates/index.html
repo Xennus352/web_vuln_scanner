@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Vulnerability Scanner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-left-color: #4f46e5;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: auto;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-50 min-h-screen flex flex-col items-center justify-start py-10 font-sans"
+  >
+    <h1 class="text-4xl font-bold text-indigo-600 mb-6">
+      Web Vulnerability Scanner
+    </h1>
+    <p class="text-gray-600 mb-6 text-center max-w-xl">
+      Enter the URL of your target website to scan for vulnerabilities.
+    </p>
+
+    <form
+      id="scan-form"
+      method="POST"
+      action="/"
+      class="w-full max-w-lg bg-white p-8 rounded-lg shadow-md flex flex-col gap-4"
+    >
+      <input
+        type="text"
+        name="target"
+        placeholder="Enter Target URL"
+        required
+        value="{{ target if target }}"
+        class="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+      <button
+        type="submit"
+        class="bg-indigo-600 text-white font-semibold py-2 rounded hover:bg-indigo-700 transition duration-200"
+      >
+        Scan
+      </button>
+      <div id="loading" class="flex items-center justify-center mt-4 hidden">
+        <div class="spinner"></div>
+        <span class="ml-3 text-gray-700 font-medium"
+          >Scanning in progress...</span
+        >
+      </div>
+    </form>
+
+    {% if error %}
+    <p class="mt-4 text-red-600 font-medium">{{ error }}</p>
+    {% endif %} {% if results %}
+    <div class="w-full max-w-lg mt-6 bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-xl font-semibold text-indigo-600 mb-4">
+        Scan Results for {{ target }}
+      </h2>
+
+      <!-- Summary -->
+      <div class="flex gap-4 mb-4">
+        <div
+          class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold"
+        >
+          Critical: {{ results | selectattr("type","equalto","Critical") | list
+          | length }}
+        </div>
+        <div
+          class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold"
+        >
+          Warning: {{ results | selectattr("type","equalto","Warning") | list |
+          length }}
+        </div>
+        <div
+          class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold"
+        >
+          Info: {{ results | selectattr("type","equalto","Info") | list | length
+          }}
+        </div>
+      </div>
+
+      <!-- Detailed Results -->
+      <ul class="list-disc list-inside space-y-2 text-gray-700">
+        {% for result in results %} {% if result.type == "Critical" %}
+        <li class="text-red-600 font-semibold">
+          [Critical] {{ result.message }}
+        </li>
+        {% elif result.type == "Warning" %}
+        <li class="text-yellow-600 font-semibold">
+          [Warning] {{ result.message }}
+        </li>
+        {% else %}
+        <li class="text-blue-600 font-semibold">[Info] {{ result.message }}</li>
+        {% endif %} {% endfor %}
+      </ul>
+    </div>
+    {% elif target and not error %}
+    <p class="mt-4 text-gray-700 font-medium">
+      Scanning complete. No vulnerabilities found.
+    </p>
+    {% endif %}
+
+    <script>
+      const form = document.getElementById("scan-form");
+      const loading = document.getElementById("loading");
+      form.addEventListener("submit", () => {
+        loading.classList.remove("hidden");
+      });
+    </script>
+  </body>
+</html>
