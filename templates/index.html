@@ -3,119 +3,411 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Web Vulnerability Scanner</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Real-World Web Security Scanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      .spinner {
-        border: 4px solid rgba(0, 0, 0, 0.1);
-        border-left-color: #4f46e5;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-        margin: auto;
+      :root {
+        --bg: #f3f5f8;
+        --panel: #ffffff;
+        --ink: #101828;
+        --muted: #475467;
+        --line: #d0d5dd;
+        --accent: #0f766e;
+        --accent-2: #0ea5e9;
+        --critical: #b42318;
+        --warning: #b54708;
+        --info: #175cd3;
       }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 8% 10%, #d6f5f3 0%, transparent 22%),
+          radial-gradient(circle at 90% 0%, #dcefff 0%, transparent 27%),
+          linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+        font-family: "Manrope", sans-serif;
+      }
+
+      .page {
+        width: min(1024px, 94vw);
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: end;
+        margin-bottom: 18px;
+      }
+
+      .kicker {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #0b7285;
+        margin-bottom: 8px;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+        line-height: 1.12;
+      }
+
+      .subtitle {
+        margin: 10px 0 0;
+        color: var(--muted);
+        max-width: 740px;
+      }
+
+      .panel {
+        background: linear-gradient(180deg, #ffffff 0%, #fafcff 100%);
+        border: 1px solid #d8e3f0;
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(16, 24, 40, 0.08);
+      }
+
+      .scan-form {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: 1.6fr 0.5fr 0.6fr;
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 11px 12px;
+        font: inherit;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      input:focus {
+        outline: 2px solid #99f6e4;
+        border-color: #14b8a6;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: none;
+        background: linear-gradient(140deg, var(--accent), var(--accent-2));
+        color: white;
+        font-weight: 700;
+        padding: 10px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+      }
+
+      .legal {
+        margin: 0;
+        color: #344054;
+        font-size: 0.92rem;
+      }
+
+      .loading {
+        display: none;
+        align-items: center;
+        gap: 9px;
+        color: #0b7285;
+        font-weight: 600;
+      }
+
+      .loading.visible {
+        display: inline-flex;
+      }
+
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border-radius: 99px;
+        border: 2px solid #7dd3fc;
+        border-top-color: #0ea5e9;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .alert {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid #fecdca;
+        background: #fff6f5;
+        color: #b42318;
+      }
+
+      .stats {
+        margin-top: 14px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .stat {
+        padding: 12px;
+        border-radius: 12px;
+        background: var(--panel);
+        border: 1px solid #d8e3f0;
+      }
+
+      .stat b {
+        display: block;
+        font-size: 1.2rem;
+        margin-top: 2px;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .result-wrap {
+        margin-top: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .finding {
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid #d8e3f0;
+        background: white;
+      }
+
+      .finding .head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 5px;
+      }
+
+      .badge {
+        font-size: 0.76rem;
+        letter-spacing: 0.02em;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 4px 9px;
+      }
+
+      .critical {
+        color: var(--critical);
+        background: #fee4e2;
+      }
+
+      .warning {
+        color: var(--warning);
+        background: #fffaeb;
+      }
+
+      .info {
+        color: var(--info);
+        background: #eff8ff;
+      }
+
+      .finding h3 {
+        margin: 0;
+        font-size: 1.02rem;
+      }
+
+      .finding p {
+        margin: 6px 0;
+        color: #344054;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.89em;
+      }
+
+      .errors {
+        margin-top: 14px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid #fddcab;
+        background: #fff8eb;
+      }
+
+      .errors ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
       @keyframes spin {
         to {
           transform: rotate(360deg);
         }
       }
+
+      @media (max-width: 860px) {
+        .hero {
+          display: block;
+        }
+
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
     </style>
   </head>
-  <body
-    class="bg-gray-50 min-h-screen flex flex-col items-center justify-start py-10 font-sans"
-  >
-    <h1 class="text-4xl font-bold text-indigo-600 mb-6">
-      Web Vulnerability Scanner
-    </h1>
-    <p class="text-gray-600 mb-6 text-center max-w-xl">
-      Enter the URL of your target website to scan for vulnerabilities.
-    </p>
-
-    <form
-      id="scan-form"
-      method="POST"
-      action="/"
-      class="w-full max-w-lg bg-white p-8 rounded-lg shadow-md flex flex-col gap-4"
-    >
-      <input
-        type="text"
-        name="target"
-        placeholder="Enter Target URL"
-        required
-        value="{{ target if target }}"
-        class="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-      <button
-        type="submit"
-        class="bg-indigo-600 text-white font-semibold py-2 rounded hover:bg-indigo-700 transition duration-200"
-      >
-        Scan
-      </button>
-      <div id="loading" class="flex items-center justify-center mt-4 hidden">
-        <div class="spinner"></div>
-        <span class="ml-3 text-gray-700 font-medium"
-          >Scanning in progress...</span
-        >
-      </div>
-    </form>
-
-    {% if error %}
-    <p class="mt-4 text-red-600 font-medium">{{ error }}</p>
-    {% endif %} {% if results %}
-    <div class="w-full max-w-lg mt-6 bg-white p-6 rounded-lg shadow-md">
-      <h2 class="text-xl font-semibold text-indigo-600 mb-4">
-        Scan Results for {{ target }}
-      </h2>
-
-      <!-- Summary -->
-      <div class="flex gap-4 mb-4">
-        <div
-          class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold"
-        >
-          Critical: {{ results | selectattr("type","equalto","Critical") | list
-          | length }}
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <div class="kicker">Authorized Testing Only</div>
+          <h1>Real-World Web Vulnerability Scanner</h1>
+          <p class="subtitle">
+            Scans static and JavaScript-rendered pages for common issues across
+            apps built with React, PHP, Node, Django, Laravel, and more.
+          </p>
         </div>
-        <div
-          class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold"
-        >
-          Warning: {{ results | selectattr("type","equalto","Warning") | list |
-          length }}
-        </div>
-        <div
-          class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold"
-        >
-          Info: {{ results | selectattr("type","equalto","Info") | list | length
-          }}
-        </div>
-      </div>
+      </section>
 
-      <!-- Detailed Results -->
-      <ul class="list-disc list-inside space-y-2 text-gray-700">
-        {% for result in results %} {% if result.type == "Critical" %}
-        <li class="text-red-600 font-semibold">
-          [Critical] {{ result.message }}
-        </li>
-        {% elif result.type == "Warning" %}
-        <li class="text-yellow-600 font-semibold">
-          [Warning] {{ result.message }}
-        </li>
-        {% else %}
-        <li class="text-blue-600 font-semibold">[Info] {{ result.message }}</li>
-        {% endif %} {% endfor %}
-      </ul>
-    </div>
-    {% elif target and not error %}
-    <p class="mt-4 text-gray-700 font-medium">
-      Scanning complete. No vulnerabilities found.
-    </p>
-    {% endif %}
+      <section class="panel">
+        <form id="scan-form" method="POST" action="/" class="scan-form">
+          <div class="field-grid">
+            <input
+              type="url"
+              name="target"
+              placeholder="https://example.com"
+              required
+              value="{{ target }}"
+            />
+            <input
+              type="number"
+              name="max_depth"
+              min="0"
+              max="5"
+              value="{{ options.max_depth }}"
+              title="Crawl Depth"
+            />
+            <input
+              type="number"
+              name="max_pages"
+              min="10"
+              max="300"
+              value="{{ options.max_pages }}"
+              title="Max Pages"
+            />
+          </div>
+          <div class="actions">
+            <button type="submit">Start Scan</button>
+            <span id="loading" class="loading"
+              ><span class="spinner"></span>Scanning in progress...</span
+            >
+            <p class="legal">
+              Scan systems you own or are explicitly authorized to test.
+            </p>
+          </div>
+        </form>
+      </section>
+
+      {% if error %}
+      <div class="alert">{{ error }}</div>
+      {% endif %}
+
+      {% if stats %}
+      <section class="stats">
+        <article class="stat">
+          URLs Scanned
+          <b>{{ stats.scanned_urls }}</b>
+        </article>
+        <article class="stat">
+          Forms Found
+          <b>{{ stats.detected_forms }}</b>
+        </article>
+        <article class="stat">
+          Scan Time
+          <b>{{ stats.duration_seconds }}s</b>
+        </article>
+        <article class="stat">
+          Findings
+          <b>{{ findings|length }}</b>
+        </article>
+      </section>
+      {% endif %}
+
+      {% if findings %}
+      <section class="result-wrap">
+        {% for finding in findings %}
+        <article class="finding">
+          <div class="head">
+            <h3>{{ finding.title }}</h3>
+            {% if finding.type == "Critical" %}
+            <span class="badge critical">{{ finding.type }}</span>
+            {% elif finding.type == "Warning" %}
+            <span class="badge warning">{{ finding.type }}</span>
+            {% else %}
+            <span class="badge info">{{ finding.type }}</span>
+            {% endif %}
+          </div>
+          <p>{{ finding.message }}</p>
+          {% if finding.url %}
+          <p><code>{{ finding.url }}</code></p>
+          {% endif %} {% if finding.recommendation %}
+          <p><strong>Recommendation:</strong> {{ finding.recommendation }}</p>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </section>
+      {% elif target and not error %}
+      <section class="result-wrap">
+        <article class="finding">
+          <div class="head">
+            <h3>No findings detected</h3>
+            <span class="badge info">Info</span>
+          </div>
+          <p>
+            The scan completed with no high-confidence findings from current
+            checks.
+          </p>
+        </article>
+      </section>
+      {% endif %}
+
+      {% if scan_errors %}
+      <section class="errors">
+        <strong>Scan Runtime Notes</strong>
+        <ul>
+          {% for e in scan_errors %}
+          <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </main>
 
     <script>
       const form = document.getElementById("scan-form");
       const loading = document.getElementById("loading");
       form.addEventListener("submit", () => {
-        loading.classList.remove("hidden");
+        loading.classList.add("visible");
       });
     </script>
   </body>
