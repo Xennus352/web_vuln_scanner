@@ -467,6 +467,135 @@ class Scanner:
             return self._safe_request("POST", target, data=data)
         return self._safe_request("GET", target, params=data)
 
+    def _submit_form_with_data(self, form: dict, data: dict) -> Optional[requests.Response]:
+        target = form.get("action")
+        method = form.get("method", "get")
+        if not target or not self._is_same_domain(target):
+            return None
+        if method == "post":
+            return self._safe_request("POST", target, data=data)
+        return self._safe_request("GET", target, params=data)
+
+    def _looks_like_login_form(self, form: dict) -> bool:
+        fields = form.get("fields", [])
+        has_password = False
+        has_identity = False
+        for field in fields:
+            field_type = (field.get("type") or "").lower()
+            name = (field.get("name") or "").lower()
+            if field_type == "password" or "password" in name or "pass" in name:
+                has_password = True
+            if (
+                "user" in name
+                or "email" in name
+                or "login" in name
+                or "account" in name
+                or "name" == name
+            ):
+                has_identity = True
+        return has_password and has_identity
+
+    def _build_login_probe_data(self, form: dict, attempt: int) -> dict:
+        fields = form.get("fields", [])
+        data = {}
+        for field in fields:
+            name = field.get("name")
+            if not name:
+                continue
+            name_l = name.lower()
+            field_type = (field.get("type") or "text").lower()
+            value = field.get("value", "")
+            if field_type == "password" or "password" in name_l or "pass" in name_l:
+                data[name] = f"WrongPassword!{attempt}!"
+            elif (
+                "user" in name_l
+                or "email" in name_l
+                or "login" in name_l
+                or "account" in name_l
+                or name_l == "name"
+            ):
+                data[name] = f"scanner_user_{attempt}@invalid.test"
+            elif field_type in {"hidden", "submit", "button"}:
+                data[name] = value
+            elif field_type in {"checkbox", "radio"}:
+                data[name] = value or "on"
+            else:
+                data[name] = f"probe_{attempt}"
+        return data
+
+    def _test_auth_bruteforce_controls(self) -> None:
+        block_keywords = [
+            "too many",
+            "rate limit",
+            "temporarily locked",
+            "account locked",
+            "captcha",
+            "try again later",
+            "blocked",
+            "slow down",
+        ]
+        fail_keywords = [
+            "invalid",
+            "incorrect",
+            "login failed",
+            "wrong password",
+            "authentication failed",
+            "bad credentials",
+            "sign in failed",
+        ]
+        tested_targets = set()
+
+        for page_url, forms in self.forms_by_url.items():
+            for form in forms:
+                if not self._looks_like_login_form(form):
+                    continue
+                target = form.get("action", page_url)
+                if target in tested_targets:
+                    continue
+                tested_targets.add(target)
+
+                attempts = []
+                protected = False
+                for i in range(1, 7):
+                    data = self._build_login_probe_data(form, i)
+                    begin = time.time()
+                    response = self._submit_form_with_data(form, data)
+                    elapsed = time.time() - begin
+                    if not response:
+                        continue
+                    text_l = response.text.lower()[:4000]
+                    attempts.append((response.status_code, elapsed, text_l))
+                    if response.status_code == 429 or any(k in text_l for k in block_keywords):
+                        protected = True
+                        break
+
+                if len(attempts) < 4 or protected:
+                    continue
+
+                statuses = [s for s, _, _ in attempts]
+                lats = [l for _, l, _ in attempts]
+                failed_signals = sum(
+                    1 for _, _, body in attempts if any(keyword in body for keyword in fail_keywords)
+                )
+                baseline = (lats[0] + lats[1]) / 2 if len(lats) >= 2 else lats[0]
+                tail = (lats[-1] + lats[-2]) / 2 if len(lats) >= 2 else lats[-1]
+                has_throttle_pattern = tail > (baseline * 2.5)
+
+                if len(set(statuses)) <= 2 and failed_signals >= 3 and not has_throttle_pattern:
+                    self._record_finding(
+                        severity="Critical",
+                        title="Possible Brute-Force / Missing Login Rate-Limit",
+                        message=(
+                            "Multiple failed login attempts were accepted without lockout, "
+                            "429 response, CAPTCHA, or clear throttling."
+                        ),
+                        url=target,
+                        recommendation=(
+                            "Implement per-account and per-IP rate limiting, progressive delays, "
+                            "temporary lockout, MFA, and centralized auth monitoring."
+                        ),
+                    )
+
     def _test_form_xss_and_sqli(self) -> None:
         xss_payload = self._xss_payloads[0]
         sqli_payload = self._sqli_payloads[2]
@@ -528,6 +657,7 @@ class Scanner:
         self._test_reflected_xss()
         self._test_sqli_query_params()
         self._test_form_xss_and_sqli()
+        self._test_auth_bruteforce_controls()
 
         duration = round(time.time() - start, 2)
         stats = {
