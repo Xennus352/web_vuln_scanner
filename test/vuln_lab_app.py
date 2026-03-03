@@ -32,9 +32,9 @@ NAV = """
   <div class="max-w-5xl mx-auto flex justify-between items-center">
     <a href="/" class="text-xl font-bold text-sky-400 mono">GENESIS_LAB_v1.0</a>
     <div class="space-x-6 text-sm text-slate-400">
-      <a href="/login" class="hover:text-sky-400">SQLi</a>
+      <a href="/login" class="hover:text-sky-400">Login</a>
       <a href="/dashboard" class="hover:text-sky-400">XSS</a>
-      <a href="/profile?id=1" class="hover:text-sky-400">IDOR</a>
+      <a href="/profile" class="hover:text-sky-400">Profile</a>
     </div>
   </div>
 </nav>
@@ -91,7 +91,7 @@ def login():
 
         if user:
             session["user_id"] = user["id"]
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("profile"))
         
         message, status = "AUTH_FAILED: Access Denied.", "error"
 
@@ -111,18 +111,33 @@ def dashboard():
 
 @app.route("/profile")
 def profile():
-    requested_id = request.args.get("id", "")
+    requested_id = request.args.get("id")
+
+    if requested_id is None:
+        requested_id = session.get("user_id")
+
+    if not requested_id:
+        return redirect(url_for("login"))
+
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT username, secret_bio FROM users WHERE id = ?", (requested_id,))
+    cur.execute("SELECT id, username, secret_bio FROM users WHERE id = ?", (requested_id,))
     user = cur.fetchone()
     conn.close()
-    
+
     PROFILE_HTML = HEADER + NAV + """
-    <div class="max-w-xl mx-auto glass p-8 rounded-2xl border border-slate-700">
+    <div class="max-w-xl mx-auto glass p-8 rounded-2xl border border-slate-700 space-y-4">
       {% if user %}
-        <h2 class="text-2xl font-bold mb-4">{{ user.username }}</h2>
-        <div class="p-4 bg-black/30 rounded-lg text-emerald-400 mono text-sm">{{ user.secret_bio }}</div>
+        <h2 class="text-2xl font-bold text-sky-400">Profile</h2>
+        <div class="bg-slate-900/60 rounded-lg p-4 space-y-2 text-sm">
+          <p><span class="text-slate-400">Username:</span> <span class="mono text-white">{{ user.username }}</span></p>
+          <p><span class="text-slate-400">User ID:</span> <span class="mono text-white">{{ user.id }}</span></p>
+          <p><span class="text-slate-400">Status:</span> <span class="text-emerald-400">Active</span></p>
+        </div>
+        <div>
+          <p class="text-slate-400 mb-2">Bio:</p>
+          <div class="p-4 bg-black/30 rounded-lg text-emerald-400 mono text-sm">{{ user.secret_bio }}</div>
+        </div>
       {% else %}
         <p class="text-red-400">User Not Found</p>
       {% endif %}
